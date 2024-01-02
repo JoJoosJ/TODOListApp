@@ -6,6 +6,7 @@ import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.dnd.DropTarget;
 import java.awt.dnd.DropTargetDropEvent;
 import java.io.IOException;
+import java.sql.PreparedStatement;
 
 public class TODOListApp extends JFrame {
     private DefaultListModel<String> plannedListModel;
@@ -52,6 +53,49 @@ public class TODOListApp extends JFrame {
         panel.add(new JScrollPane(list));
         return panel;
     }
+    private JPanel createButtonPanel(JButton addButton, JButton removeButton, JButton updateButton) {
+        JPanel panel = new JPanel(new FlowLayout());
+        panel.add(addButton);
+        panel.add(removeButton);
+        panel.add(updateButton);
+
+        Dimension buttonSize = new Dimension(200, 30);
+        addButton.setPreferredSize(buttonSize);
+        removeButton.setPreferredSize(buttonSize);
+        updateButton.setPreferredSize(buttonSize);
+
+        return panel;
+    }
+    private void addCard() {
+        Database db = new Database();
+        db.verbinden();
+
+        // Prompt the user for card name
+        String cardName = JOptionPane.showInputDialog(this, "Enter card name:");
+
+        // Check if both card name and ID are provided
+        if (cardName != null && !cardName.isEmpty()) {
+            // Concatenate card name and ID and add to the planned list
+            String cardDetails = cardName;
+            plannedListModel.addElement(cardDetails);
+        } else {
+            // Show an error message if either card name or ID is not provided
+            JOptionPane.showMessageDialog(this, "Both card name and ID are required.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+
+
+
+    }
+
+
+    private void removeCard() {
+
+    }
+
+
+    private void updateButton() {
+
+    }
 
     private JList<String> createList(DefaultListModel<String> model) {
         JList<String> list = new JList<>(model);
@@ -86,48 +130,6 @@ public class TODOListApp extends JFrame {
         new DropTarget(list, new DropTargetAdapter(list));
 
         return list;
-    }
-
-    private JPanel createButtonPanel(JButton addButton, JButton removeButton, JButton updateButton) {
-        JPanel panel = new JPanel(new FlowLayout()); // FlowLayout anstelle von GridLayout
-        panel.add(addButton);
-        panel.add(removeButton);
-        panel.add(updateButton);
-
-        // Setze die gewünschte Größe für die Buttons
-        Dimension buttonSize = new Dimension(200, 30); // Beispielgröße, ersetze dies durch deine gewünschte Größe
-        addButton.setPreferredSize(buttonSize);
-        removeButton.setPreferredSize(buttonSize);
-        updateButton.setPreferredSize(buttonSize);
-
-        return panel;
-    }
-    private void addCard() {
-        // Prompt the user for card name
-        String cardName = JOptionPane.showInputDialog(this, "Enter card name:");
-
-        // Prompt the user for ID
-        String cardId = JOptionPane.showInputDialog(this, "Enter card ID:");
-
-        // Check if both card name and ID are provided
-        if (cardName != null && !cardName.isEmpty() && cardId != null && !cardId.isEmpty()) {
-            // Concatenate card name and ID and add to the planned list
-            String cardDetails = cardName + " (ID: " + cardId + ")";
-            plannedListModel.addElement(cardDetails);
-        } else {
-            // Show an error message if either card name or ID is not provided
-            JOptionPane.showMessageDialog(this, "Both card name and ID are required.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-
-    private void removeCard() {
-
-    }
-
-
-    private void updateButton() {
-
     }
 
     private JList<String> getSelectedList() {
@@ -195,6 +197,8 @@ public class TODOListApp extends JFrame {
     }
 
     public static void main(String[] args) {
+        Database database = new Database();
+        database.verbinden();
         SwingUtilities.invokeLater(() -> new TODOListApp().setVisible(true));
     }
 }

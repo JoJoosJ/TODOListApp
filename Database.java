@@ -1,16 +1,16 @@
 import java.sql.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class Database {
 
     Connection con = null;
     private Statement sm;
     private ResultSet rs = null;
-
-
     public void verbinden() {
-        String dbHost = "127.0.0.1";
-        String dbPort = "";
-        String dbName = "DB2Project";
+        String dbHost = "localhost";
+        String dbPort = "1433";
+        String dbName = "DB2Projekt";
         String dbUser = "sa";
         String dbPass = "Sqlserveradmin1";
 
@@ -31,14 +31,21 @@ public class Database {
             System.err.println("Fehler beim Verbinden: " + e);
         }
     }
-    public void verbindungTrennen() {
-        try {
-            if (con != null && !con.isClosed()) {
-                con.close();
-                System.err.println("Verbindung erfolgreich geschlossen.");
-            }
+    public void addEvent(String eventName){
+
+        LocalDate localDate = LocalDate.now();
+
+        String sql = "INSERT INTO timetable ([Time created], [Event], [Rating]) VALUES (GETDATE(), ?, ?)";
+        try (PreparedStatement statement = con.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+
+            statement.setDate(1, Date.valueOf(localDate));
+            statement.setString(2, eventName);
+            statement.setString(3, "Planned");
+            statement.executeUpdate();
+
         } catch (SQLException e) {
-            System.err.println("Fehler beim Schließen der Verbindung: " + e);
+            e.printStackTrace();
         }
     }
+
 }
