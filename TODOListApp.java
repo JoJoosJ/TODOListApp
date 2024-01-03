@@ -7,11 +7,14 @@ import java.awt.dnd.DropTarget;
 import java.awt.dnd.DropTargetDropEvent;
 import java.io.IOException;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.List;
 
 public class TODOListApp extends JFrame {
     private DefaultListModel<String> plannedListModel;
     private DefaultListModel<String> inProgressListModel;
     private DefaultListModel<String> doneListModel;
+    Database db = new Database();
 
     public TODOListApp() {
         setTitle("TODOListApp");
@@ -29,14 +32,22 @@ public class TODOListApp extends JFrame {
         JButton addButton = new JButton("Add Card");
         JButton removeButton = new JButton("Remove Card");
         JButton updateButton = new JButton(("Update Planner"));
+        JButton ratingButton = new JButton(("Change Rating"));
 
         addButton.addActionListener(e -> addCard());
-        removeButton.addActionListener(e -> removeCard());
+        removeButton.addActionListener(e -> {
+            try {
+                removeCard();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+        });
         updateButton.addActionListener(e -> updateButton());
+        ratingButton.addActionListener(e -> changeRating());
 
         setLayout(new BorderLayout());
 
-        JPanel buttonPanel = createButtonPanel(addButton, removeButton, updateButton);
+        JPanel buttonPanel = createButtonPanel(addButton, removeButton, updateButton, ratingButton);
         add(buttonPanel, BorderLayout.PAGE_START);
 
         // Create panels for the lists and add them to the CENTER region
@@ -45,6 +56,7 @@ public class TODOListApp extends JFrame {
         centerPanel.add(createPanel("In Progress", inProgressList));
         centerPanel.add(createPanel("Done", doneList));
         add(centerPanel, BorderLayout.CENTER);
+        updateButton();
     }
 
     private JPanel createPanel(String title, JList<String> list) {
@@ -53,48 +65,79 @@ public class TODOListApp extends JFrame {
         panel.add(new JScrollPane(list));
         return panel;
     }
-    private JPanel createButtonPanel(JButton addButton, JButton removeButton, JButton updateButton) {
+    private JPanel createButtonPanel(JButton addButton, JButton removeButton, JButton updateButton, JButton ratingButton) {
         JPanel panel = new JPanel(new FlowLayout());
         panel.add(addButton);
         panel.add(removeButton);
+        panel.add(ratingButton);
         panel.add(updateButton);
-
-        Dimension buttonSize = new Dimension(200, 30);
-        addButton.setPreferredSize(buttonSize);
-        removeButton.setPreferredSize(buttonSize);
-        updateButton.setPreferredSize(buttonSize);
-
         return panel;
     }
     private void addCard() {
-        Database db = new Database();
-        db.verbinden();
 
-        // Prompt the user for card name
+        db.MSSQLconnect();
+
         String cardName = JOptionPane.showInputDialog(this, "Enter card name:");
 
-        // Check if both card name and ID are provided
         if (cardName != null && !cardName.isEmpty()) {
-            // Concatenate card name and ID and add to the planned list
             String cardDetails = cardName;
             plannedListModel.addElement(cardDetails);
+            db.addEvent(cardName);
+
         } else {
-            // Show an error message if either card name or ID is not provided
-            JOptionPane.showMessageDialog(this, "Both card name and ID are required.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Card name is required.", "Error", JOptionPane.ERROR_MESSAGE);
         }
-
-
-
+        updateButton();
     }
 
+    private void removeCard() throws SQLException {
+        db.MSSQLconnect();
+        String cardName = JOptionPane.showInputDialog(this, "Enter ID");
 
-    private void removeCard() {
-
+        if (cardName != null && !cardName.isEmpty()) {
+            String cardDetails = cardName;
+            plannedListModel.removeElement(cardDetails);
+            db.deleteCard(cardName);
+        } else {
+            JOptionPane.showMessageDialog(this, "ID is required.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+        updateButton();
     }
 
+    private void changeRating() {
+        db.MSSQLconnect();
+        String cardID = JOptionPane.showInputDialog(this, "Enter ID");
+        String cardRating = JOptionPane.showInputDialog(this, "Enter Rating");
+
+        if (cardID != null && !cardID.isEmpty() && cardRating != null && !cardRating.isEmpty()) {
+            db.changeRating(cardID, cardRating);
+
+        }else {
+            JOptionPane.showMessageDialog(this, "ID and Rating are required", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+        updateButton();
+    }
 
     private void updateButton() {
 
+        plannedListModel.clear();
+        inProgressListModel.clear();
+        doneListModel.clear();
+
+        db.MSSQLconnect();
+        List cardsPlanned = db.getCardsfromMSSQL("Planned");
+        List cardsInProgress = db.getCardsfromMSSQL("InProgress");
+        List cardsDone = db.getCardsfromMSSQL("Done");
+
+        for (int i = 0; i <= cardsPlanned.size() -1; i++) {
+            plannedListModel.addElement((String) cardsPlanned.get(i));
+        }
+        for (int i = 0; i <= cardsInProgress.size() -1; i++) {
+            inProgressListModel.addElement((String) cardsInProgress.get(i));
+        }
+        for (int i = 0; i <= cardsDone.size() -1; i++) {
+            doneListModel.addElement((String) cardsDone.get(i));
+        }
     }
 
     private JList<String> createList(DefaultListModel<String> model) {
@@ -105,13 +148,6 @@ public class TODOListApp extends JFrame {
             @Override
             public int getSourceActions(JComponent c) {
                 return TransferHandler.MOVE;
-            }
-
-            @Override
-            protected Transferable createTransferable(JComponent c) {
-                JList<String> source = (JList<String>) c;
-                String selectedValue = source.getSelectedValue();
-                return new StringTransferable(selectedValue);
             }
 
             @Override
@@ -126,8 +162,6 @@ public class TODOListApp extends JFrame {
                 }
             }
         });
-
-        new DropTarget(list, new DropTargetAdapter(list));
 
         return list;
     }
@@ -144,61 +178,7 @@ public class TODOListApp extends JFrame {
         return null;
     }
 
-    private static class StringTransferable implements Transferable {
-        private String data;
-
-        public StringTransferable(String data) {
-            this.data = data;
-        }
-
-        @Override
-        public DataFlavor[] getTransferDataFlavors() {
-            return new DataFlavor[]{DataFlavor.stringFlavor};
-        }
-
-        @Override
-        public boolean isDataFlavorSupported(DataFlavor flavor) {
-            return flavor.equals(DataFlavor.stringFlavor);
-        }
-
-        @Override
-        public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException, IOException {
-            if (isDataFlavorSupported(flavor)) {
-                return data;
-            } else {
-                throw new UnsupportedFlavorException(flavor);
-            }
-        }
-    }
-
-    private static class DropTargetAdapter extends DropTarget {
-        private JList<String> targetList;
-
-        public DropTargetAdapter(JList<String> targetList) {
-            this.targetList = targetList;
-        }
-
-        @Override
-        public void drop(DropTargetDropEvent dtde) {
-            try {
-                Transferable transferable = dtde.getTransferable();
-                if (transferable.isDataFlavorSupported(DataFlavor.stringFlavor)) {
-                    String data = (String) transferable.getTransferData(DataFlavor.stringFlavor);
-                    DefaultListModel<String> model = (DefaultListModel<String>) targetList.getModel();
-                    model.addElement(data);
-                    dtde.dropComplete(true);
-                    return;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            dtde.rejectDrop();
-        }
-    }
-
     public static void main(String[] args) {
-        Database database = new Database();
-        database.verbinden();
         SwingUtilities.invokeLater(() -> new TODOListApp().setVisible(true));
     }
 }
