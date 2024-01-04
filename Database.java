@@ -46,7 +46,7 @@ public class Database {
             statement.setString(2, eventName);
             statement.setString(3, "Planned");
             statement.executeUpdate();
-            System.err.println("Card " + eventName + " added Successfully!");
+            System.out.println("Card " + eventName + " added Successfully!");
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -59,11 +59,31 @@ public class Database {
             statement.setString(1, Rating);
 
             try (ResultSet rs = statement.executeQuery()) {
-                // Hier können Sie das ResultSet weiterverarbeiten
                 while (rs.next()) {
                     String ID = rs.getString("ID");
                     String Event = rs.getString("Event");
                     cards.add("(ID:" + ID + ") " + Event);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return cards;
+    }
+
+    public List<String> getCardsFromArchive(Date startDate) {
+        List<String> cards = new LinkedList<>();
+        try (CallableStatement statement = con.prepareCall("{call GetCardsFromArchive(?)}")) {
+            statement.setTimestamp(1, new Timestamp(startDate.getTime()));
+
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    String Rating = rs.getString("Rating");
+                    String Event = rs.getString("Event");
+                    //________________Schwierigkeiten__________________
+                    Timestamp Date = rs.getTimestamp("TimeDeleted");
+                    cards.add(Rating);
+                    cards.add("(Deleted At: " + Date + ") " + Event);
                 }
             }
         } catch (SQLException e) {
@@ -104,3 +124,5 @@ public class Database {
         }
     }
 }
+
+

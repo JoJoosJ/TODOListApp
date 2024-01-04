@@ -1,12 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
-import java.awt.datatransfer.UnsupportedFlavorException;
-import java.awt.dnd.DropTarget;
-import java.awt.dnd.DropTargetDropEvent;
-import java.io.IOException;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -31,8 +25,9 @@ public class TODOListApp extends JFrame {
 
         JButton addButton = new JButton("Add Card");
         JButton removeButton = new JButton("Remove Card");
-        JButton updateButton = new JButton(("Update Planner"));
         JButton ratingButton = new JButton(("Change Rating"));
+        JButton showArchive = new JButton((("show Archive")));
+        JButton showCurrent = new JButton((("show Current")));
 
         addButton.addActionListener(e -> addCard());
         removeButton.addActionListener(e -> {
@@ -42,15 +37,16 @@ public class TODOListApp extends JFrame {
                 throw new RuntimeException(ex);
             }
         });
-        updateButton.addActionListener(e -> updateButton());
         ratingButton.addActionListener(e -> changeRating());
+        showArchive.addActionListener(e -> showArchive());
+        showCurrent.addActionListener(e -> updateButton());
 
         setLayout(new BorderLayout());
 
-        JPanel buttonPanel = createButtonPanel(addButton, removeButton, updateButton, ratingButton);
+        JPanel buttonPanel = createButtonPanel(addButton, removeButton, ratingButton, showArchive, showCurrent);
         add(buttonPanel, BorderLayout.PAGE_START);
 
-        // Create panels for the lists and add them to the CENTER region
+
         JPanel centerPanel = new JPanel(new GridLayout(1, 3));
         centerPanel.add(createPanel("Planned", plannedList));
         centerPanel.add(createPanel("In Progress", inProgressList));
@@ -65,12 +61,13 @@ public class TODOListApp extends JFrame {
         panel.add(new JScrollPane(list));
         return panel;
     }
-    private JPanel createButtonPanel(JButton addButton, JButton removeButton, JButton updateButton, JButton ratingButton) {
+    private JPanel createButtonPanel(JButton addButton, JButton removeButton, JButton ratingButton, JButton showArchive, JButton showCurrent) {
         JPanel panel = new JPanel(new FlowLayout());
         panel.add(addButton);
         panel.add(removeButton);
         panel.add(ratingButton);
-        panel.add(updateButton);
+        panel.add(showArchive);
+        panel.add(showCurrent);
         return panel;
     }
     private void addCard() {
@@ -80,10 +77,8 @@ public class TODOListApp extends JFrame {
         String cardName = JOptionPane.showInputDialog(this, "Enter card name:");
 
         if (cardName != null && !cardName.isEmpty()) {
-            String cardDetails = cardName;
-            plannedListModel.addElement(cardDetails);
+            plannedListModel.addElement(cardName);
             db.addEvent(cardName);
-
         } else {
             JOptionPane.showMessageDialog(this, "Card name is required.", "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -95,8 +90,7 @@ public class TODOListApp extends JFrame {
         String cardName = JOptionPane.showInputDialog(this, "Enter ID");
 
         if (cardName != null && !cardName.isEmpty()) {
-            String cardDetails = cardName;
-            plannedListModel.removeElement(cardDetails);
+            plannedListModel.removeElement(cardName);
             db.deleteCard(cardName);
         } else {
             JOptionPane.showMessageDialog(this, "ID is required.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -117,6 +111,31 @@ public class TODOListApp extends JFrame {
         }
         updateButton();
     }
+    public void showArchive() {
+        db.MSSQLconnect();
+
+        String startDate = JOptionPane.showInputDialog(this, "Enter start Date in Form : <YYYY-MM-DD>","YYYY-MM-DD");
+
+        plannedListModel.clear();
+        inProgressListModel.clear();
+        doneListModel.clear();
+
+        //------------Schwierigkeiten-------------------------------
+        java.sql.Date sqlDate = java.sql.Date.valueOf(startDate);
+        List<String> archive = db.getCardsFromArchive(sqlDate);
+
+        for (int i = 0; i < archive.size() -1; i++) {
+            if (archive.get(i).equals("Planned")) {
+                plannedListModel.addElement((String) archive.get(i +1));
+            }
+            if (archive.get(i).equals("InProgress")) {
+                inProgressListModel.addElement((String) archive.get(i +1));
+            }
+            if (archive.get(i).equals("Done")) {
+                doneListModel.addElement((String) archive.get(i +1));
+            }
+        }
+    }
 
     private void updateButton() {
 
@@ -125,9 +144,9 @@ public class TODOListApp extends JFrame {
         doneListModel.clear();
 
         db.MSSQLconnect();
-        List cardsPlanned = db.getCardsfromMSSQL("Planned");
-        List cardsInProgress = db.getCardsfromMSSQL("InProgress");
-        List cardsDone = db.getCardsfromMSSQL("Done");
+        List<String> cardsPlanned = db.getCardsfromMSSQL("Planned");
+        List<String> cardsInProgress = db.getCardsfromMSSQL("InProgress");
+        List<String> cardsDone = db.getCardsfromMSSQL("Done");
 
         for (int i = 0; i <= cardsPlanned.size() -1; i++) {
             plannedListModel.addElement((String) cardsPlanned.get(i));
@@ -139,6 +158,7 @@ public class TODOListApp extends JFrame {
             doneListModel.addElement((String) cardsDone.get(i));
         }
     }
+
 
     private JList<String> createList(DefaultListModel<String> model) {
         JList<String> list = new JList<>(model);
@@ -173,7 +193,6 @@ public class TODOListApp extends JFrame {
                 return (JList<String>) component;
             }
         }
-        // If no JList is found, show an error message or handle the situation accordingly
         JOptionPane.showMessageDialog(this, "Please select a list.", "Error", JOptionPane.ERROR_MESSAGE);
         return null;
     }
