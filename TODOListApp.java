@@ -49,7 +49,7 @@ public class TODOListApp extends JFrame {
 
         JPanel centerPanel = new JPanel(new GridLayout(1, 3));
         centerPanel.add(createPanel("Planned", plannedList));
-        centerPanel.add(createPanel("In Progress", inProgressList));
+        centerPanel.add(createPanel("InProgress", inProgressList));
         centerPanel.add(createPanel("Done", doneList));
         add(centerPanel, BorderLayout.CENTER);
         updateButton();
